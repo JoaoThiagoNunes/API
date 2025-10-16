@@ -11,6 +11,26 @@ app = Flask(__name__)
 CORS(app)
 
 
+API_KEY = os.environ.get("API_KEY")
+
+@app.before_request
+def require_api_key_guard():
+    # Liberar healthcheck e root
+    if request.path in ("/health", "/"):
+        return None
+    # Se nenhuma API_KEY definida no ambiente, não exigir (útil em dev)
+    if not API_KEY:
+        return None
+    # Exigir Authorization: Bearer <API_KEY>
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header != f"Bearer {API_KEY}":
+        return jsonify({"error": "unauthorized"}), 401
+    return None
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}), 200
+
 def grayscale_by_technique(image_bgr: np.ndarray, technique: str, *, weighted_weights: tuple[float, float, float] | None = None, single_channel: str | None = None) -> np.ndarray:
     """
     Técnicas suportadas: average, luminosity, lightness, desaturation, single_channel(r|g|b), weighted.
